@@ -1,5 +1,5 @@
 {
-  "name": "fabric",
+  "name": "@postermywall/fabric-v6",
   "description": "Object model for HTML5 canvas, and SVG-to-canvas parser. Backed by jsdom and node-canvas.",
   "homepage": "http://fabricjs.com/",
   "version": "6.0.0-beta1",
@@ -43,6 +43,7 @@
     "docs": "typedoc --out docs fabric.ts",
     "cli": "node ./scripts/index.mjs",
     "sandboxscript": "node ./scripts/sandbox.mjs",
+    "release": "npm publish --access public",
     "changelog": "auto-changelog -o change-output.md --unreleased-only",
     "build": "npm run cli -- build",
     "build:fast": "npm run build -- -f",
