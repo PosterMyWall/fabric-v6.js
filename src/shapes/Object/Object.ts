@@ -97,6 +97,7 @@ export class FabricObject<
 
   declare opacity: number;
 
+  declare __PMWID: string;
   declare paintFirst: 'fill' | 'stroke';
   declare fill: string | TFiller | null;
   declare fillRule: CanvasFillRule;

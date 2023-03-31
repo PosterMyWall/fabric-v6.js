@@ -8,6 +8,7 @@ export interface ObjectProps extends SerializedObjectProps, ClipPathProps {
   fill: TFiller | string | null;
   stroke: TFiller | string | null;
   shadow: Shadow | null;
+  __PMWID: string;
 
   /**
    * Minimum allowed scale value of an object
