@@ -2,6 +2,12 @@ import { TMat2D, TRadian } from './typedefs';
 import { cos } from './util/misc/cos';
 import { sin } from './util/misc/sin';
 
+export interface CornerPoints {
+  tl: XY;
+  tr: XY;
+  bl: XY;
+  br: XY;
+}
 export interface XY {
   x: number;
   y: number;

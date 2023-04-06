@@ -3,14 +3,14 @@ import { config } from '../../config';
 import { ALIASING_LIMIT, iMatrix, VERSION } from '../../constants';
 import { ObjectEvents } from '../../EventTypeDefs';
 import { AnimatableObject } from './AnimatableObject';
-import { Point } from '../../Point';
+import type { CornerPoints, Point, XY } from '../../Point';
 import { Shadow } from '../../Shadow';
 import type {
   TDegree,
   TFiller,
   TSize,
   TCacheCanvasDimensions,
-  TClassProperties,
+  TClassProperties
 } from '../../typedefs';
 import { classRegistry } from '../../ClassRegistry';
 import { runningAnimations } from '../../util/animation/AnimationRegistry';
@@ -21,7 +21,7 @@ import { invertTransform, qrDecompose } from '../../util/misc/matrix';
 import { enlivenObjectEnlivables } from '../../util/misc/objectEnlive';
 import {
   resetObjectTransform,
-  saveObjectTransform,
+  saveObjectTransform
 } from '../../util/misc/objectTransforms';
 import { sendObjectToPlane } from '../../util/misc/planeChange';
 import { pick } from '../../util/misc/pick';
@@ -33,7 +33,7 @@ import type { Image } from '../Image';
 import {
   cacheProperties,
   fabricObjectDefaultValues,
-  stateProperties,
+  stateProperties
 } from './defaultValues';
 import type { Gradient } from '../../gradient/Gradient';
 import type { Pattern } from '../../Pattern';
@@ -41,21 +41,18 @@ import type { Canvas } from '../../canvas/Canvas';
 import { SerializedObjectProps } from './types/SerializedObjectProps';
 import { ObjectProps } from './types/ObjectProps';
 import { TProps } from './types';
+import { degreesToRadians } from '../../util';
 
 export type TCachedFabricObject = FabricObject &
-  Required<
-    Pick<
-      FabricObject,
-      | 'zoomX'
-      | 'zoomY'
-      | '_cacheCanvas'
-      | '_cacheContext'
-      | 'cacheTranslationX'
-      | 'cacheTranslationY'
-    >
-  > & {
-    _cacheContext: CanvasRenderingContext2D;
-  };
+  Required<Pick<FabricObject,
+    | 'zoomX'
+    | 'zoomY'
+    | '_cacheCanvas'
+    | '_cacheContext'
+    | 'cacheTranslationX'
+    | 'cacheTranslationY'>> & {
+  _cacheContext: CanvasRenderingContext2D;
+};
 
 /**
  * Root object class from which all 2d shape classes inherit from
@@ -85,14 +82,11 @@ export type TCachedFabricObject = FabricObject &
  * @fires dragleave
  * @fires drop
  */
-export class FabricObject<
-    Props extends TProps<ObjectProps> = Partial<ObjectProps>,
-    SProps extends SerializedObjectProps = SerializedObjectProps,
-    EventSpec extends ObjectEvents = ObjectEvents
-  >
+export class FabricObject<Props extends TProps<ObjectProps> = Partial<ObjectProps>,
+  SProps extends SerializedObjectProps = SerializedObjectProps,
+  EventSpec extends ObjectEvents = ObjectEvents>
   extends AnimatableObject<EventSpec>
-  implements ObjectProps
-{
+  implements ObjectProps {
   declare minScaleLimit: number;
 
   declare opacity: number;
@@ -380,7 +374,7 @@ export class FabricObject<
       zoomX: objectScale.x,
       zoomY: objectScale.y,
       x: neededX,
-      y: neededY,
+      y: neededY
     };
   }
 
@@ -491,18 +485,16 @@ export class FabricObject<
    * @param {Array} [propertiesToInclude] Any properties that you might want to additionally include in the output
    * @return {Object} Object representation of an instance
    */
-  toObject<
-    T extends Omit<Props & TClassProperties<this>, keyof SProps>,
-    K extends keyof T = never
-  >(propertiesToInclude?: K[]): { [R in K]: T[K] } & SProps {
+  toObject<T extends Omit<Props & TClassProperties<this>, keyof SProps>,
+    K extends keyof T = never>(propertiesToInclude?: K[]): { [R in K]: T[K] } & SProps {
     const NUM_FRACTION_DIGITS = config.NUM_FRACTION_DIGITS,
       clipPathData =
         this.clipPath && !this.clipPath.excludeFromExport
           ? {
-              ...this.clipPath.toObject(propertiesToInclude),
-              inverted: this.clipPath.inverted,
-              absolutePositioned: this.clipPath.absolutePositioned,
-            }
+            ...this.clipPath.toObject(propertiesToInclude),
+            inverted: this.clipPath.inverted,
+            absolutePositioned: this.clipPath.absolutePositioned
+          }
           : null,
       object = {
         ...pick(this, propertiesToInclude),
@@ -546,12 +538,66 @@ export class FabricObject<
         globalCompositeOperation: this.globalCompositeOperation,
         skewX: toFixed(this.skewX, NUM_FRACTION_DIGITS),
         skewY: toFixed(this.skewY, NUM_FRACTION_DIGITS),
-        ...(clipPathData ? { clipPath: clipPathData } : null),
+        ...(clipPathData ? { clipPath: clipPathData } : null)
       };
 
     return !this.includeDefaultValues
       ? this._removeDefaultValues(object)
       : object;
+  }
+
+  /**
+   * *PMW*
+   * This function returns corner points of the object relative to the given center.
+   * @param {Object} center center of object
+   * @returns {{tl: ({x: number, y: number}|*), tr: ({x: number, y: number}|*), bl: ({x: number, y: number}|*), br: ({x: number, y: *}|*)}}
+   */
+  getCornerPoints(center: Point): CornerPoints {
+    const angle = this.angle,
+      height = this.getScaledHeight(),
+      // coordinates of the center point
+      x = center.x,
+      y = center.y,
+      theta = degreesToRadians(angle);
+    let width = this.getScaledWidth();
+
+    if (width < 0) {
+      width = Math.abs(width);
+    }
+
+    const sinTh = Math.sin(theta),
+      cosTh = Math.cos(theta),
+      _angle = width > 0 ? Math.atan(height / width) : 0,
+      _hypotenuse = (width / Math.cos(_angle)) / 2,
+      offsetX = Math.cos(_angle + theta) * _hypotenuse,
+      offsetY = Math.sin(_angle + theta) * _hypotenuse;
+
+    const tl = {
+        x: x - offsetX,
+        y: y - offsetY
+      },
+
+      tr = {
+        x: (x - offsetX) + (width * cosTh),
+        y: (y - offsetY) + (width * sinTh)
+      },
+
+      br = {
+        x: x + offsetX,
+        y: y + offsetY
+      },
+
+      bl = {
+        x: (x - offsetX) - (height * sinTh),
+        y: (y - offsetY) + (height * cosTh)
+      };
+
+    return {
+      tl: tl,
+      tr: tr,
+      bl: bl,
+      br: br
+    };
   }
 
   /**
@@ -577,7 +623,7 @@ export class FabricObject<
       ? defaults
       : Object.getPrototypeOf(this);
 
-    Object.keys(object).forEach(function (prop) {
+    Object.keys(object).forEach(function(prop) {
       if (prop === 'left' || prop === 'top' || prop === 'type') {
         return;
       }
@@ -1014,15 +1060,13 @@ export class FabricObject<
 
   _setStrokeStyles(
     ctx: CanvasRenderingContext2D,
-    decl: Pick<
-      this,
+    decl: Pick<this,
       | 'stroke'
       | 'strokeWidth'
       | 'strokeLineCap'
       | 'strokeDashOffset'
       | 'strokeLineJoin'
-      | 'strokeMiterLimit'
-    >
+      | 'strokeMiterLimit'>
   ) {
     const stroke = decl.stroke;
     if (stroke) {
@@ -1384,7 +1428,7 @@ export class FabricObject<
     const canvas = new StaticCanvas(el, {
       enableRetinaScaling: false,
       renderOnAddRemove: false,
-      skipOffscreen: false,
+      skipOffscreen: false
     });
     if (options.format === 'jpeg') {
       canvas.backgroundColor = '#fff';
